@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# chroot-gentoo is a tool to make chrooting to gentoo system as easy as possible just with a single command.
+# Author: Stnby
+# Date: 2018-04-13 22:28
+
+MNT_DIR=/mnt/gentoo
+DRIVE=/dev/sda
+ROOT_NUM=4
+BOOT_NUM=2
+EFI_NUM=1
+HOME_NUM=5
+
+if [ "$EUID" -ne 0 ]
+  then echo "[!] This script needs root permissions to run"
+  exit
+fi
+
+mkdir -p $MNT_DIR
+mount ${DRIVE}${ROOT_NUM} $MNT_DIR
+mkdir -p ${MNT_DIR}/boot ${MNT_DIR}/home
+mount ${DRIVE}${BOOT_NUM} ${MNT_DIR}/boot
+mount ${DRIVE}${HOME_NUM} ${MNT_DIR}/home
+mkdir -p ${MNT_DIR}/boot/efi
+mount ${DRIVE}${EFI_NUM} ${MNT_DIR}/boot/efi
+
+mount --types proc /proc ${MNT_DIR}/proc
+mount --rbind /sys ${MNT_DIR}/sys
+mount --make-rslave ${MNT_DIR}/sys
+mount --rbind /dev ${MNT_DIR}/dev
+mount --make-rslave ${MNT_DIR}/dev
+
+test -L /dev/shm && rm /dev/shm && mkdir /dev/shm
+mount --types tmpfs --options nosuid,nodev,noexec shm /dev/shm
+
+echo "[+] Done mounting partitions"
+
+chroot $MNT_DIR /bin/bash -c "source /etc/profile && export PS1=\"(chroot) $PS1\" && echo \"[!] Type exit to close chroot environment and unmount\" && bash"
+
+umount -R $MNT_DIR
+
+echo "[+] Done unmounting partitions"
